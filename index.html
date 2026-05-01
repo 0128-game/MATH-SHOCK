@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Math Time Shock - Random</title>
+    <title>Math Time Shock - Auto Skip</title>
     <style>
         body { background: #000; color: #fff; font-family: 'Arial Black', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
         #game-container { position: relative; width: 650px; height: 650px; display: flex; justify-content: center; align-items: center; }
@@ -54,7 +54,6 @@
     const ctx = canvas.getContext('2d');
     const inputEl = document.getElementById('answer-input');
 
-    // 配列をランダムに並び替える関数（Fisher-Yatesシャッフル）
     function shuffleArray(array) {
         for (let i = array.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -69,7 +68,6 @@
             if (!response.ok) throw new Error("JSONが見つかりません");
             const data = await response.json();
             
-            // データを取得してシャッフル
             quizList = data.quiz;
             shuffleArray(quizList);
             
@@ -105,8 +103,10 @@
         const totalElapsed = (now - gameStartTime) / 1000;
         const currentQElapsed = (now - questionStartTime) / 1000;
 
+        // メモリ2つ分(time秒)が経過したら強制スキップ
         if (currentQElapsed >= gameTimeLimit) {
             submitAnswer(false);
+            return;
         }
 
         draw(totalElapsed);
@@ -119,7 +119,7 @@
         const cy = canvas.height / 2;
         const gap = 0.06;
 
-        // 外側タイマー
+        // 外側タイマー (24個)
         const outerR = 285;
         const numOuter = 24;
         const secPerSegment = gameTimeLimit / 2; 
@@ -135,7 +135,7 @@
             ctx.stroke();
         }
 
-        // 内側正誤インジケータ
+        // 内側正誤インジケータ (12個)
         const innerR = 235;
         const numInner = 12;
         for (let i = 0; i < numInner; i++) {
