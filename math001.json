@@ -3,51 +3,63 @@
   "quiz": [
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     },
     {
       "question": "問題文",
-      "answer": "解答"
+      "answer": "解答",
+      "time": 5
     }
   ]
 }
