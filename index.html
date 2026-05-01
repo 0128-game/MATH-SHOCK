@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Math Time Shock - Auto Skip</title>
+    <title>Math Time Shock - Fixed</title>
     <style>
         body { background: #000; color: #fff; font-family: 'Arial Black', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
         #game-container { position: relative; width: 650px; height: 650px; display: flex; justify-content: center; align-items: center; }
@@ -24,14 +24,14 @@
 
     <div id="setup-screen">
         <h1 style="color:#00d4ff; margin-bottom:30px;">TIME SHOCK</h1>
-        <input type="text" id="json-filename" placeholder="ファイル名を入力">
+        <input type="text" id="json-filename" placeholder="ファイル名 (例: math001)">
         <button onclick="loadQuizData()">START</button>
         <p id="msg" style="color:#ff4757; margin-top:10px;"></p>
     </div>
 
     <div id="ui-layer" class="hidden">
-        <div id="question">Loading...</div>
-        <input type="text" id="answer-input" autocomplete="off">
+        <div id="question">Ready?</div>
+        <input type="text" id="answer-input" autocomplete="off" inputmode="numeric">
     </div>
 
     <div id="result-screen" class="hidden">
@@ -65,12 +65,13 @@
         const filename = document.getElementById('json-filename').value.trim() || "math001";
         try {
             const response = await fetch(`./${filename}.json`);
-            if (!response.ok) throw new Error("JSONが見つかりません");
+            if (!response.ok) throw new Error("JSONファイルが見つかりません");
             const data = await response.json();
             
             quizList = data.quiz;
             shuffleArray(quizList);
             
+            // クイズ全体で1つの時間設定か、各問の時間か（ここでは元の設計通り1問辺り目安を保持）
             gameTimeLimit = data.time || 5; 
             results = new Array(quizList.length).fill(null);
             startQuiz();
@@ -103,10 +104,9 @@
         const totalElapsed = (now - gameStartTime) / 1000;
         const currentQElapsed = (now - questionStartTime) / 1000;
 
-        // メモリ2つ分(time秒)が経過したら強制スキップ
+        // 指定秒数経過で自動スキップ
         if (currentQElapsed >= gameTimeLimit) {
             submitAnswer(false);
-            return;
         }
 
         draw(totalElapsed);
@@ -117,55 +117,65 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
-        const gap = 0.06;
+        const gap = 0.05;
 
-        // 外側タイマー (24個)
+        // 外側タイマー (24セグメントで1周の演出とする)
         const outerR = 285;
         const numOuter = 24;
-        const secPerSegment = gameTimeLimit / 2; 
-        const segmentsToGray = Math.floor(totalElapsed / secPerSegment);
+        // 全体の制限時間を「12問 × 設定秒数」と仮定して外周を回す
+        const totalGameLimit = quizList.length * gameTimeLimit;
+        const segmentsToGray = Math.floor((totalElapsed / totalGameLimit) * numOuter);
 
         for (let i = 0; i < numOuter; i++) {
             const sAngle = -Math.PI/2 + (Math.PI * 2 / numOuter) * i + gap;
             const eAngle = -Math.PI/2 + (Math.PI * 2 / numOuter) * (i + 1) - gap;
             ctx.beginPath();
-            ctx.lineWidth = 18;
+            ctx.lineWidth = 15;
             ctx.strokeStyle = (i < segmentsToGray) ? "#333" : "#00d4ff";
             ctx.arc(cx, cy, outerR, sAngle, eAngle);
             ctx.stroke();
         }
 
-        // 内側正誤インジケータ (12個)
-        const innerR = 235;
-        const numInner = 12;
+        // 内側正誤インジケータ (クイズの数に合わせる)
+        const innerR = 230;
+        const numInner = quizList.length;
         for (let i = 0; i < numInner; i++) {
             const sAngle = -Math.PI/2 + (Math.PI * 2 / numInner) * i + gap;
             const eAngle = -Math.PI/2 + (Math.PI * 2 / numInner) * (i + 1) - gap;
             ctx.beginPath();
-            ctx.lineWidth = 30;
+            ctx.lineWidth = 40;
             if (results[i] === true) ctx.strokeStyle = "#2ed573";      
             else if (results[i] === false) ctx.strokeStyle = "#ff4757"; 
-            else ctx.strokeStyle = "#1a1a1a";                          
+            else ctx.strokeStyle = "#1a1a1a";                           
             ctx.arc(cx, cy, innerR, sAngle, eAngle);
             ctx.stroke();
         }
 
+        // セパレーター（仕切り線）
         ctx.strokeStyle = "#000";
-        ctx.lineWidth = 5;
+        ctx.lineWidth = 4;
         for(let i=0; i<numInner; i++) {
             const ang = -Math.PI/2 + (Math.PI * 2 / numInner) * i;
             ctx.beginPath();
-            ctx.moveTo(cx + Math.cos(ang)*210, cy + Math.sin(ang)*210);
+            ctx.moveTo(cx + Math.cos(ang)*200, cy + Math.sin(ang)*200);
             ctx.lineTo(cx + Math.cos(ang)*310, cy + Math.sin(ang)*310);
             ctx.stroke();
         }
     }
 
-    inputEl.addEventListener('keypress', (e) => {
+    // 全角を半角に変換するユーティリティ
+    function toHalfWidth(str) {
+        return str.replace(/[０-９]/g, (s) => String.fromCharCode(s.charCodeAt(0) - 0xFEE0));
+    }
+
+    inputEl.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') {
-            const userAns = inputEl.value.trim();
+            const userAns = toHalfWidth(inputEl.value.trim());
             const correctAns = quizList[currentIdx].answer.toString().trim();
-            submitAnswer(userAns === correctAns);
+            
+            if (userAns !== "") {
+                submitAnswer(userAns === correctAns);
+            }
         }
     });
 
@@ -173,6 +183,7 @@
         if (!isRunning) return;
         results[currentIdx] = isCorrect;
         currentIdx++;
+        
         if (currentIdx < quizList.length) {
             showQuestion();
         } else {
@@ -186,9 +197,14 @@
         document.getElementById('ui-layer').classList.add('hidden');
         document.getElementById('result-screen').classList.remove('hidden');
         document.getElementById('final-score').innerText = `${score} / ${quizList.length}`;
-        if (score === 12) {
-            document.getElementById('res-title').innerText = "PERFECT!";
-            document.getElementById('res-title').style.color = "#ffd700";
+        
+        const resTitle = document.getElementById('res-title');
+        if (score === quizList.length) {
+            resTitle.innerText = "PERFECT!";
+            resTitle.style.color = "#ffd700";
+        } else {
+            resTitle.innerText = "FINISH";
+            resTitle.style.color = "#fff";
         }
     }
 </script>
