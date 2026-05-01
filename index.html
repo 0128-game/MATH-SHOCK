@@ -2,140 +2,197 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Math Time Shock - JSON Loader</title>
+    <title>Math Time Shock - Pro</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; background: #121212; color: #eee; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0; }
-        #game-container { background: #222; padding: 2.5rem; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.7); width: 450px; text-align: center; border: 1px solid #444; }
-        #timer { font-size: 4rem; font-weight: bold; color: #ff5252; text-shadow: 0 0 10px rgba(255,82,82,0.5); margin: 10px 0; }
-        #question { font-size: 1.8rem; margin: 20px 0; min-height: 2.5em; display: flex; align-items: center; justify-content: center; }
-        input[type="text"] { width: 90%; padding: 12px; font-size: 1.3rem; border-radius: 8px; border: 2px solid #555; background: #111; color: white; outline: none; transition: border-color 0.3s; }
-        input[type="text"]:focus { border-color: #2ed573; }
-        .hidden { display: none; }
-        button { padding: 12px 25px; font-size: 1.1rem; cursor: pointer; background: #2ed573; border: none; border-radius: 8px; color: white; font-weight: bold; transition: transform 0.1s; }
-        button:active { transform: scale(0.95); }
-        #msg { color: #ff4757; margin-top: 10px; font-size: 0.9rem; }
-        .info { color: #aaa; font-size: 0.8rem; margin-bottom: 15px; }
+        body { background: #0a0a0a; color: #fff; font-family: 'Courier New', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        #game-container { position: relative; width: 600px; height: 600px; display: flex; justify-content: center; align-items: center; }
+        
+        /* 円形キャンバス */
+        canvas { position: absolute; top: 0; left: 0; z-index: 1; }
+
+        /* 中央のコンテンツ */
+        #ui-layer { position: relative; z-index: 10; width: 320px; text-align: center; }
+        
+        #question { font-size: 2rem; font-weight: bold; margin-bottom: 20px; text-shadow: 0 0 10px #00d4ff; height: 3rem; display: flex; align-items: center; justify-content: center; }
+        input[type="text"] { background: rgba(0,0,0,0.5); border: 2px solid #00d4ff; color: white; font-size: 1.5rem; width: 150px; padding: 10px; text-align: center; border-radius: 10px; outline: none; box-shadow: 0 0 15px rgba(0,212,255,0.3); }
+        
+        .hidden { display: none !important; }
+        
+        /* セットアップ画面 */
+        #setup-screen, #result-screen { position: absolute; z-index: 20; background: rgba(0,0,0,0.9); padding: 40px; border-radius: 20px; border: 2px solid #444; width: 400px; text-align: center; }
+        button { padding: 10px 25px; font-size: 1.2rem; cursor: pointer; background: #00d4ff; border: none; border-radius: 5px; color: #000; font-weight: bold; margin-top: 20px; }
+        input#json-filename { padding: 10px; font-size: 1rem; width: 80%; margin-top: 10px; border-radius: 5px; border: none; }
     </style>
 </head>
 <body>
 
-    <div id="game-container">
-        <div id="setup-screen">
-            <h1>Math Time Shock</h1>
-            <p class="info">読み込むJSONファイル名を入力してください</p>
-            <input type="text" id="json-filename" placeholder="例: math001" style="margin-bottom: 20px;"><br>
-            <button onclick="loadQuizData()">データをロード</button>
-            <div id="msg"></div>
-        </div>
+<div id="game-container">
+    <canvas id="timerCanvas" width="600" height="600"></canvas>
 
-        <div id="quiz-screen" class="hidden">
-            <div id="timer">5</div>
-            <div id="q-count" style="color: #888;">第 1 / 12 問</div>
-            <div id="question"></div>
-            <input type="text" id="answer-input" placeholder="答えを入力..." autocomplete="off">
-            <div id="score-display" style="margin-top:20px;">正解数: 0</div>
-        </div>
-
-        <div id="result-screen" class="hidden">
-            <h1>Game Over</h1>
-            <p id="final-score" style="font-size: 1.5rem;"></p>
-            <button onclick="location.reload()">タイトルに戻る</button>
-        </div>
+    <div id="setup-screen">
+        <h2>TIME SHOCK</h2>
+        <p>JSONファイル名を入力</p>
+        <input type="text" id="json-filename" placeholder="math001">
+        <button onclick="loadQuizData()">START</button>
+        <p id="msg" style="color:red; font-size:0.8rem;"></p>
     </div>
 
-    <script>
-        let quizList = [];
-        let currentIdx = 0;
-        let score = 0;
-        let timeLeft = 5;
-        let timerInterval;
+    <div id="ui-layer" class="hidden">
+        <div id="q-number" style="font-size: 1.2rem; color: #00d4ff; margin-bottom: 5px;">QUESTION 1/12</div>
+        <div id="question">Loading...</div>
+        <input type="text" id="answer-input" autocomplete="off">
+        <div id="score-info" style="margin-top: 15px; color: #888;">CORRECT: 0</div>
+    </div>
 
-        const setupScreen = document.getElementById('setup-screen');
-        const quizScreen = document.getElementById('quiz-screen');
-        const resultScreen = document.getElementById('result-screen');
-        const inputEl = document.getElementById('answer-input');
-        const timerEl = document.getElementById('timer');
-        const msgEl = document.getElementById('msg');
+    <div id="result-screen" class="hidden">
+        <h1 id="res-title">FINISHED</h1>
+        <p id="final-score" style="font-size: 2rem;"></p>
+        <button onclick="location.reload()">RETRY</button>
+    </div>
+</div>
 
-        // --- データ読み込み ---
-        async function loadQuizData() {
-            const filename = document.getElementById('json-filename').value.trim();
-            if (!filename) {
-                msgEl.innerText = "ファイル名を入力してください";
-                return;
-            }
+<script>
+    let quizList = [];
+    let currentIdx = 0;
+    let score = 0;
+    let timeLeft = 5000; // ミリ秒で管理
+    let lastTime = 0;
+    let isRunning = false;
+    
+    const canvas = document.getElementById('timerCanvas');
+    const ctx = canvas.getContext('2d');
+    const inputEl = document.getElementById('answer-input');
 
-            try {
-                // 同じディレクトリから fetch
-                const response = await fetch(`./${filename}.json`);
-                if (!response.ok) throw new Error("ファイルが見つかりません");
-                
-                const data = await response.json();
-                quizList = data.quiz; // 指定された形式の "quiz" 配列を取得
-                
-                startQuiz();
-            } catch (err) {
-                msgEl.innerText = "エラー: " + err.message;
-            }
+    // JSONロード
+    async function loadQuizData() {
+        const filename = document.getElementById('json-filename').value.trim() || "math001";
+        try {
+            const response = await fetch(`./${filename}.json`);
+            if (!response.ok) throw new Error("File not found");
+            const data = await response.json();
+            quizList = data.quiz;
+            startFirstQuestion();
+        } catch (err) {
+            document.getElementById('msg').innerText = err.message;
+        }
+    }
+
+    function startFirstQuestion() {
+        document.getElementById('setup-screen').classList.add('hidden');
+        document.getElementById('ui-layer').classList.remove('hidden');
+        currentIdx = 0;
+        score = 0;
+        isRunning = true;
+        showQuestion();
+        requestAnimationFrame(updateFrame);
+    }
+
+    function showQuestion() {
+        if (currentIdx >= quizList.length) {
+            return endGame();
+        }
+        document.getElementById('q-number').innerText = `QUESTION ${currentIdx + 1}/${quizList.length}`;
+        document.getElementById('question').innerText = quizList[currentIdx].question;
+        inputEl.value = "";
+        inputEl.focus();
+        timeLeft = 5000; // 1問5秒
+        lastTime = performance.now();
+    }
+
+    // メインループ
+    function updateFrame(time) {
+        if (!isRunning) return;
+
+        const dt = time - lastTime;
+        lastTime = time;
+        timeLeft -= dt;
+
+        if (timeLeft <= 0) {
+            nextQuestion();
         }
 
-        // --- ゲーム制御 ---
-        function startQuiz() {
-            setupScreen.classList.add('hidden');
-            quizScreen.classList.remove('hidden');
+        drawTimer();
+        requestAnimationFrame(updateFrame);
+    }
+
+    function drawTimer() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        const cx = canvas.width / 2;
+        const cy = canvas.height / 2;
+        
+        // パラメータ
+        const outerRadius = 260;
+        const innerRadius = 230;
+        const timeRatio = timeLeft / 5000;
+        const totalProgress = currentIdx / quizList.length;
+
+        // 共通設定
+        ctx.lineCap = 'round';
+
+        // 1. 外側の円 (現在の問題の残り時間)
+        ctx.beginPath();
+        ctx.lineWidth = 15;
+        ctx.strokeStyle = timeRatio > 0.3 ? '#00d4ff' : '#ff4757';
+        ctx.arc(cx, cy, outerRadius, -Math.PI/2, -Math.PI/2 + (Math.PI * 2 * timeRatio));
+        ctx.stroke();
+
+        // 2. 内側の円 (全体の進捗)
+        ctx.beginPath();
+        ctx.lineWidth = 10;
+        ctx.strokeStyle = '#333'; // 背景
+        ctx.arc(cx, cy, innerRadius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#2ed573'; // 進捗
+        ctx.arc(cx, cy, innerRadius, -Math.PI/2, -Math.PI/2 + (Math.PI * 2 * totalProgress));
+        ctx.stroke();
+
+        // 装飾的な目盛り
+        for(let i=0; i<60; i++) {
+            ctx.beginPath();
+            ctx.strokeStyle = i % 5 === 0 ? '#555' : '#222';
+            ctx.lineWidth = 2;
+            const angle = (i * 6) * Math.PI / 180;
+            ctx.moveTo(cx + Math.cos(angle) * 270, cy + Math.sin(angle) * 270);
+            ctx.lineTo(cx + Math.cos(angle) * 285, cy + Math.sin(angle) * 285);
+            ctx.stroke();
+        }
+    }
+
+    inputEl.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            const ans = inputEl.value.trim();
+            if (ans === quizList[currentIdx].answer.toString().trim()) {
+                score++;
+                document.getElementById('score-info').innerText = `CORRECT: ${score}`;
+            }
+            nextQuestion();
+        }
+    });
+
+    function nextQuestion() {
+        currentIdx++;
+        if (currentIdx < quizList.length) {
             showQuestion();
+        } else {
+            endGame();
         }
+    }
 
-        function showQuestion() {
-            if (currentIdx >= quizList.length) {
-                return endGame();
-            }
-            
-            document.getElementById('q-count').innerText = `第 ${currentIdx + 1} / ${quizList.length} 問`;
-            document.getElementById('question').innerText = quizList[currentIdx].question;
-            inputEl.value = "";
-            inputEl.focus();
-            
-            timeLeft = 5;
-            timerEl.innerText = timeLeft;
-            
-            clearInterval(timerInterval);
-            timerInterval = setInterval(countDown, 1000);
-        }
+    function endGame() {
+        isRunning = false;
+        document.getElementById('ui-layer').classList.add('hidden');
+        document.getElementById('result-screen').classList.remove('hidden');
+        document.getElementById('final-score').innerText = `${score} / ${quizList.length}`;
+        
+        // 判定メッセージ
+        let msg = "Nice Try!";
+        if (score === quizList.length) msg = "PERFECT!!";
+        else if (score >= quizList.length * 0.7) msg = "GOOD JOB!";
+        document.getElementById('res-title').innerText = msg;
+    }
+</script>
 
-        function countDown() {
-            timeLeft--;
-            timerEl.innerText = timeLeft;
-            if (timeLeft <= 0) {
-                nextQuestion();
-            }
-        }
-
-        function nextQuestion() {
-            currentIdx++;
-            showQuestion();
-        }
-
-        // 解答判定
-        inputEl.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                const userAns = inputEl.value.trim();
-                const correctAns = quizList[currentIdx].answer.toString().trim();
-
-                if (userAns === correctAns) {
-                    score++;
-                    document.getElementById('score-display').innerText = `正解数: ${score}`;
-                }
-                nextQuestion();
-            }
-        });
-
-        function endGame() {
-            clearInterval(timerInterval);
-            quizScreen.classList.add('hidden');
-            resultScreen.classList.remove('hidden');
-            document.getElementById('final-score').innerText = `${quizList.length}問中 ${score}問正解！`;
-        }
-    </script>
 </body>
 </html>
