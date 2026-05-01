@@ -2,26 +2,19 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <title>Math Time Shock - Pro</title>
+    <title>Math Time Shock - Custom</title>
     <style>
-        body { background: #0a0a0a; color: #fff; font-family: 'Courier New', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        body { background: #050505; color: #fff; font-family: 'Arial', sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
         #game-container { position: relative; width: 600px; height: 600px; display: flex; justify-content: center; align-items: center; }
-        
-        /* 円形キャンバス */
         canvas { position: absolute; top: 0; left: 0; z-index: 1; }
-
-        /* 中央のコンテンツ */
-        #ui-layer { position: relative; z-index: 10; width: 320px; text-align: center; }
-        
-        #question { font-size: 2rem; font-weight: bold; margin-bottom: 20px; text-shadow: 0 0 10px #00d4ff; height: 3rem; display: flex; align-items: center; justify-content: center; }
-        input[type="text"] { background: rgba(0,0,0,0.5); border: 2px solid #00d4ff; color: white; font-size: 1.5rem; width: 150px; padding: 10px; text-align: center; border-radius: 10px; outline: none; box-shadow: 0 0 15px rgba(0,212,255,0.3); }
-        
+        #ui-layer { position: relative; z-index: 10; width: 350px; text-align: center; }
+        #question { font-size: 1.8rem; font-weight: bold; margin-bottom: 20px; text-shadow: 0 0 10px #00d4ff; height: 4rem; display: flex; align-items: center; justify-content: center; }
+        input[type="text"] { background: rgba(255,255,255,0.1); border: 2px solid #444; color: white; font-size: 2rem; width: 180px; padding: 10px; text-align: center; border-radius: 5px; outline: none; }
+        input[type="text"]:focus { border-color: #00d4ff; box-shadow: 0 0 15px rgba(0,212,255,0.5); }
         .hidden { display: none !important; }
-        
-        /* セットアップ画面 */
-        #setup-screen, #result-screen { position: absolute; z-index: 20; background: rgba(0,0,0,0.9); padding: 40px; border-radius: 20px; border: 2px solid #444; width: 400px; text-align: center; }
-        button { padding: 10px 25px; font-size: 1.2rem; cursor: pointer; background: #00d4ff; border: none; border-radius: 5px; color: #000; font-weight: bold; margin-top: 20px; }
-        input#json-filename { padding: 10px; font-size: 1rem; width: 80%; margin-top: 10px; border-radius: 5px; border: none; }
+        #setup-screen, #result-screen { position: absolute; z-index: 20; background: #111; padding: 40px; border-radius: 10px; border: 1px solid #333; width: 380px; text-align: center; }
+        button { padding: 12px 30px; font-size: 1.1rem; cursor: pointer; background: #e67e22; border: none; border-radius: 4px; color: white; font-weight: bold; }
+        input#json-filename { padding: 12px; font-size: 1rem; width: 80%; margin-bottom: 20px; background: #222; border: 1px solid #444; color: white; }
     </style>
 </head>
 <body>
@@ -30,32 +23,31 @@
     <canvas id="timerCanvas" width="600" height="600"></canvas>
 
     <div id="setup-screen">
-        <h2>TIME SHOCK</h2>
-        <p>JSONファイル名を入力</p>
-        <input type="text" id="json-filename" placeholder="math001">
-        <button onclick="loadQuizData()">START</button>
-        <p id="msg" style="color:red; font-size:0.8rem;"></p>
+        <h1 style="color:#00d4ff; margin-top:0;">TIME SHOCK</h1>
+        <input type="text" id="json-filename" placeholder="ファイル名を入力 (例: math001)">
+        <button onclick="loadQuizData()">GAME START</button>
+        <p id="msg" style="color:#ff4757;"></p>
     </div>
 
     <div id="ui-layer" class="hidden">
-        <div id="q-number" style="font-size: 1.2rem; color: #00d4ff; margin-bottom: 5px;">QUESTION 1/12</div>
-        <div id="question">Loading...</div>
+        <div id="q-number" style="font-size: 1.1rem; color: #aaa;">QUESTION 1</div>
+        <div id="question">Preparing...</div>
         <input type="text" id="answer-input" autocomplete="off">
-        <div id="score-info" style="margin-top: 15px; color: #888;">CORRECT: 0</div>
     </div>
 
     <div id="result-screen" class="hidden">
-        <h1 id="res-title">FINISHED</h1>
-        <p id="final-score" style="font-size: 2rem;"></p>
-        <button onclick="location.reload()">RETRY</button>
+        <h2 id="res-title">RESULT</h2>
+        <div id="final-score" style="font-size: 3rem; margin: 20px 0;"></div>
+        <button onclick="location.reload()">BACK TO TITLE</button>
     </div>
 </div>
 
 <script>
     let quizList = [];
     let currentIdx = 0;
-    let score = 0;
-    let timeLeft = 5000; // ミリ秒で管理
+    let results = []; // 正誤履歴 (true:正解, false:不正解)
+    let timeLeft = 0;
+    let totalTimeLimit = 0;
     let lastTime = 0;
     let isRunning = false;
     
@@ -63,115 +55,110 @@
     const ctx = canvas.getContext('2d');
     const inputEl = document.getElementById('answer-input');
 
-    // JSONロード
     async function loadQuizData() {
         const filename = document.getElementById('json-filename').value.trim() || "math001";
         try {
             const response = await fetch(`./${filename}.json`);
-            if (!response.ok) throw new Error("File not found");
+            if (!response.ok) throw new Error("JSONファイルが見つかりません");
             const data = await response.json();
             quizList = data.quiz;
-            startFirstQuestion();
+            results = new Array(quizList.length).fill(null);
+            startQuiz();
         } catch (err) {
             document.getElementById('msg').innerText = err.message;
         }
     }
 
-    function startFirstQuestion() {
+    function startQuiz() {
         document.getElementById('setup-screen').classList.add('hidden');
         document.getElementById('ui-layer').classList.remove('hidden');
         currentIdx = 0;
-        score = 0;
         isRunning = true;
         showQuestion();
         requestAnimationFrame(updateFrame);
     }
 
     function showQuestion() {
-        if (currentIdx >= quizList.length) {
-            return endGame();
-        }
-        document.getElementById('q-number').innerText = `QUESTION ${currentIdx + 1}/${quizList.length}`;
+        if (currentIdx >= quizList.length) return endGame();
+        
+        document.getElementById('q-number').innerText = `QUESTION ${currentIdx + 1}`;
         document.getElementById('question').innerText = quizList[currentIdx].question;
+        
         inputEl.value = "";
         inputEl.focus();
-        timeLeft = 5000; // 1問5秒
+        
+        totalTimeLimit = quizList[currentIdx].time * 1000;
+        timeLeft = totalTimeLimit;
         lastTime = performance.now();
     }
 
-    // メインループ
     function updateFrame(time) {
         if (!isRunning) return;
-
         const dt = time - lastTime;
         lastTime = time;
         timeLeft -= dt;
 
         if (timeLeft <= 0) {
-            nextQuestion();
+            submitAnswer(false); // 時間切れは不正解
         }
 
-        drawTimer();
+        drawCanvas();
         requestAnimationFrame(updateFrame);
     }
 
-    function drawTimer() {
+    function drawCanvas() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         const cx = canvas.width / 2;
         const cy = canvas.height / 2;
-        
-        // パラメータ
-        const outerRadius = 260;
-        const innerRadius = 230;
-        const timeRatio = timeLeft / 5000;
-        const totalProgress = currentIdx / quizList.length;
+        const outerR = 260;
+        const innerR = 225;
 
-        // 共通設定
-        ctx.lineCap = 'round';
-
-        // 1. 外側の円 (現在の問題の残り時間)
+        // 1. 外側の円: 今の問題の残り時間 (時計回りに減っていく)
+        const timeRatio = Math.max(0, timeLeft / totalTimeLimit);
         ctx.beginPath();
-        ctx.lineWidth = 15;
+        ctx.lineWidth = 12;
         ctx.strokeStyle = timeRatio > 0.3 ? '#00d4ff' : '#ff4757';
-        ctx.arc(cx, cy, outerRadius, -Math.PI/2, -Math.PI/2 + (Math.PI * 2 * timeRatio));
+        // -PI/2 (真上) から、残り時間分だけ円を描く
+        ctx.arc(cx, cy, outerR, -Math.PI/2, -Math.PI/2 + (Math.PI * 2 * timeRatio), false);
         ctx.stroke();
 
-        // 2. 内側の円 (全体の進捗)
-        ctx.beginPath();
-        ctx.lineWidth = 10;
-        ctx.strokeStyle = '#333'; // 背景
-        ctx.arc(cx, cy, innerRadius, 0, Math.PI * 2);
-        ctx.stroke();
-
-        ctx.beginPath();
-        ctx.strokeStyle = '#2ed573'; // 進捗
-        ctx.arc(cx, cy, innerRadius, -Math.PI/2, -Math.PI/2 + (Math.PI * 2 * totalProgress));
-        ctx.stroke();
-
-        // 装飾的な目盛り
-        for(let i=0; i<60; i++) {
+        // 2. 内側の円: 12問の正誤履歴
+        const segmentCount = quizList.length;
+        const gap = 0.05; // セグメント間の隙間
+        for (let i = 0; i < segmentCount; i++) {
+            const startAngle = -Math.PI/2 + (Math.PI * 2 / segmentCount) * i + gap;
+            const endAngle = -Math.PI/2 + (Math.PI * 2 / segmentCount) * (i + 1) - gap;
+            
             ctx.beginPath();
-            ctx.strokeStyle = i % 5 === 0 ? '#555' : '#222';
-            ctx.lineWidth = 2;
-            const angle = (i * 6) * Math.PI / 180;
-            ctx.moveTo(cx + Math.cos(angle) * 270, cy + Math.sin(angle) * 270);
-            ctx.lineTo(cx + Math.cos(angle) * 285, cy + Math.sin(angle) * 285);
+            ctx.lineWidth = 20;
+            
+            if (results[i] === true) ctx.strokeStyle = '#2ed573';      // 正解：緑
+            else if (results[i] === false) ctx.strokeStyle = '#ff4757'; // 不正解：赤
+            else ctx.strokeStyle = '#222';                             // 未回答：グレー
+            
+            ctx.arc(cx, cy, innerR, startAngle, endAngle);
             ctx.stroke();
+        }
+
+        // 装飾的なドット
+        ctx.fillStyle = "#444";
+        for (let i = 0; i < 60; i++) {
+            const ang = (i * 6) * Math.PI / 180;
+            ctx.beginPath();
+            ctx.arc(cx + Math.cos(ang) * 285, cy + Math.sin(ang) * 285, 1.5, 0, Math.PI*2);
+            ctx.fill();
         }
     }
 
     inputEl.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            const ans = inputEl.value.trim();
-            if (ans === quizList[currentIdx].answer.toString().trim()) {
-                score++;
-                document.getElementById('score-info').innerText = `CORRECT: ${score}`;
-            }
-            nextQuestion();
+            const isCorrect = inputEl.value.trim() === quizList[currentIdx].answer.toString().trim();
+            submitAnswer(isCorrect);
         }
     });
 
-    function nextQuestion() {
+    function submitAnswer(isCorrect) {
+        results[currentIdx] = isCorrect;
         currentIdx++;
         if (currentIdx < quizList.length) {
             showQuestion();
@@ -182,15 +169,11 @@
 
     function endGame() {
         isRunning = false;
+        const correctCount = results.filter(r => r === true).length;
         document.getElementById('ui-layer').classList.add('hidden');
         document.getElementById('result-screen').classList.remove('hidden');
-        document.getElementById('final-score').innerText = `${score} / ${quizList.length}`;
-        
-        // 判定メッセージ
-        let msg = "Nice Try!";
-        if (score === quizList.length) msg = "PERFECT!!";
-        else if (score >= quizList.length * 0.7) msg = "GOOD JOB!";
-        document.getElementById('res-title').innerText = msg;
+        document.getElementById('final-score').innerText = `${correctCount} / ${quizList.length}`;
+        document.getElementById('res-title').innerText = correctCount === quizList.length ? "PERFECT!" : "GAME OVER";
     }
 </script>
 
